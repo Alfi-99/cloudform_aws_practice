@@ -469,6 +469,88 @@ aws cloudwatch get-metric-statistics \
 - [ ] Beanstalk env var `API_GATEWAY_URL` diset
 - [ ] Frontend accessible via Amplify URL
 
+---
+
+## 🗑️ LANGKAH 7 — Destroy / Hapus Semua Resource
+
+> Setara dengan `terraform destroy` — menghapus **semua resource** AWS yang dibuat.
+
+### 7.1 Cara Destroy via GitHub Actions (Direkomendasikan)
+
+1. Buka **GitHub Repo → Actions**
+2. Pilih workflow **"🗑️ Destroy Infrastructure"**
+3. Klik **"Run workflow"**
+4. Isi kolom konfirmasi dengan kata: **`DESTROY`**
+5. Klik **"Run workflow"** → semua stack dihapus otomatis berurutan
+
+### 7.2 Cara Destroy Manual via CLI
+
+```bash
+# Urutan KEBALIKAN dari deploy (dependency dari bawah ke atas)
+
+# Step 1: Hapus API Gateway
+aws cloudformation delete-stack --stack-name myapp-apigateway --region ap-southeast-1
+aws cloudformation wait stack-delete-complete --stack-name myapp-apigateway
+
+# Step 2: Hapus Lambda
+aws cloudformation delete-stack --stack-name myapp-lambda --region ap-southeast-1
+aws cloudformation wait stack-delete-complete --stack-name myapp-lambda
+
+# Step 3: Hapus Beanstalk
+aws cloudformation delete-stack --stack-name myapp-beanstalk --region ap-southeast-1
+aws cloudformation wait stack-delete-complete --stack-name myapp-beanstalk
+
+# Step 4: Kosongkan S3 dulu (wajib sebelum hapus stack storage)
+BUCKET="myapp-storage-$(aws sts get-caller-identity --query Account --output text)-ap-southeast-1"
+aws s3 rm s3://${BUCKET} --recursive
+aws cloudformation delete-stack --stack-name myapp-storage --region ap-southeast-1
+aws cloudformation wait stack-delete-complete --stack-name myapp-storage
+
+# Step 5: Disable RDS Deletion Protection, lalu hapus
+aws rds modify-db-instance \
+  --db-instance-identifier myapp-postgres \
+  --no-deletion-protection \
+  --apply-immediately
+sleep 30
+aws cloudformation delete-stack --stack-name myapp-rds --region ap-southeast-1
+aws cloudformation wait stack-delete-complete --stack-name myapp-rds  # ~10-15 menit
+
+# Step 6: Hapus VPC (paling terakhir)
+aws cloudformation delete-stack --stack-name myapp-vpc --region ap-southeast-1
+aws cloudformation wait stack-delete-complete --stack-name myapp-vpc
+
+echo "✅ Semua stack berhasil dihapus!"
+```
+
+### 7.3 Perbedaan CloudFormation Delete vs Terraform Destroy
+
+| Fitur | CloudFormation | Terraform |
+|---|---|---|
+| Perintah hapus | `delete-stack` | `terraform destroy` |
+| Konfirmasi | Tidak ada (manual) | Ketik `yes` |
+| Dependency | Otomatis diurutkan | Otomatis diurutkan |
+| State file | Tersimpan di AWS | Tersimpan lokal/S3 |
+| Snapshot RDS | Ya, otomatis | Perlu konfigurasi |
+| Rollback jika gagal | Ya, otomatis | Tidak |
+
+### 7.4 ⚠️ Yang TIDAK otomatis dihapus (perlu manual)
+
+```bash
+# 1. RDS Snapshot (sengaja disimpan sebagai backup)
+aws rds describe-db-snapshots --query 'DBSnapshots[?contains(DBInstanceIdentifier,`myapp`)].DBSnapshotIdentifier'
+# Hapus jika sudah tidak perlu:
+aws rds delete-db-snapshot --db-snapshot-identifier <snapshot-id>
+
+# 2. CloudWatch Log Groups
+aws logs delete-log-group --log-group-name /aws/lambda/myapp-post-handler
+aws logs delete-log-group --log-group-name /aws/lambda/myapp-get-handler
+
+# 3. Amplify App (hapus via Console atau CLI)
+aws amplify delete-app --app-id <AMPLIFY_APP_ID>
+```
+
+---
+
 **Testing:**
 - [ ] POST data berhasil (HTTP 201)
 - [ ] GET data berhasil (HTTP 200)
