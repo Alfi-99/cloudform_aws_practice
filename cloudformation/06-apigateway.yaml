@@ -124,7 +124,6 @@ Resources:
       StageName: v1
       Description: 'Production stage v1'
       # Throttling untuk proteksi high traffic
-      DefaultRouteSettings: {}
       MethodSettings:
         - ResourcePath: '/data'
           HttpMethod: '*'
