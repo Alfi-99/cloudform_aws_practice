@@ -89,7 +89,7 @@ Resources:
       EnvironmentName: myapp-backend-env
       Description: 'Production Environment — Node.js 20 + ALB + Auto Scaling'
       # Platform: Node.js 20 di Amazon Linux 2023
-      SolutionStackName: '64bit Amazon Linux 2023 v6.1.0 running Node.js 20'
+      SolutionStackName: '64bit Amazon Linux 2023 v6.10.1 running Node.js 20'
       OptionSettings:
 
         # ── VPC & Subnet ──────────────────────────
