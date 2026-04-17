@@ -34,7 +34,10 @@ jobs:
       - name: Run Tests
         run: |
           cd lambda
-          python -m pytest tests/ -v --tb=short
+          echo "=== GET Handler Tests ==="
+          PYTHONPATH=./get_handler python -m pytest tests/test_get.py -v --tb=short
+          echo "=== POST Handler Tests ==="
+          PYTHONPATH=./post_handler python -m pytest tests/test_post.py -v --tb=short
           echo "✅ All Lambda tests passed!"
 
   # ─────────────────────────────────────────────
