@@ -150,6 +150,29 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestAPI}/*/GET/data'
 
+  # ─────────────────────────────────────────────
+  # Gateway Responses (Untuk CORS pada error 4xx/5xx)
+  # ─────────────────────────────────────────────
+  GatewayResponse4XX:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+      ResponseType: DEFAULT_4XX
+      RestApiId: !Ref RestAPI
+
+  GatewayResponse5XX:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+      ResponseType: DEFAULT_5XX
+      RestApiId: !Ref RestAPI
+
 # ─────────────────────────────────────────────
 # OUTPUTS
 # ─────────────────────────────────────────────
