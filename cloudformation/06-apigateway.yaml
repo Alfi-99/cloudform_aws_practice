@@ -129,9 +129,7 @@ Resources:
           HttpMethod: '*'
           ThrottlingBurstLimit: 200        # Max burst 200 request sekaligus
           ThrottlingRateLimit: 100         # Max 100 request/detik steady state
-          LoggingLevel: ERROR              # Log hanya error (hemat biaya)
-          DataTraceEnabled: false
-          MetricsEnabled: true
+          # Tuntaskan free tier API Gateway (hapus LoggingLevel agar tidak perlu set IAM Role akun global untuk CloudWatch Logs)
 
   # ─────────────────────────────────────────────
   # Lambda Permissions — izinkan API Gateway invoke Lambda
