@@ -74,12 +74,12 @@ app.get('/', (req, res) => {
   res.json({
     name: 'myapp-backend',
     version: '1.0.0',
-    endpoints: ['GET /health', 'GET /api/data', 'POST /api/data']
+    endpoints: ['GET /health', 'GET /data', 'POST /data']
   });
 });
 
-// ── POST /api/data → Forward ke Lambda via API Gateway ────────────────
-app.post('/api/data', async (req, res) => {
+// ── POST /data → Forward ke Lambda via API Gateway ────────────────
+app.post('/data', async (req, res) => {
   try {
     if (!API_GATEWAY_URL) {
       return res.status(503).json({ error: 'API Gateway URL not configured' });
@@ -96,8 +96,8 @@ app.post('/api/data', async (req, res) => {
   }
 });
 
-// ── GET /api/data → Forward ke Lambda via API Gateway ─────────────────
-app.get('/api/data', async (req, res) => {
+// ── GET /data → Forward ke Lambda via API Gateway ─────────────────
+app.get('/data', async (req, res) => {
   try {
     if (!API_GATEWAY_URL) {
       return res.status(503).json({ error: 'API Gateway URL not configured' });
