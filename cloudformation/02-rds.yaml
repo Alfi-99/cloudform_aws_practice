@@ -101,7 +101,7 @@ Resources:
       DBInstanceIdentifier: myapp-postgres
       DBInstanceClass: db.t3.micro          # Free Tier eligible
       Engine: postgres
-      EngineVersion: '15.4'
+      EngineVersion: '16.13'
       MasterUsername: myappuser
       MasterUserPassword: !Ref DBPassword
       DBName: myappdb
