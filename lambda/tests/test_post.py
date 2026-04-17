@@ -4,8 +4,12 @@ import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 
-# Tambahkan path ke post_handler
-sys.path.insert(0, '../post_handler')
+import os
+import sys
+
+# Tambahkan path ke post_handler secara dinamis
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(base_dir, 'post_handler'))
 
 
 class TestPostLambdaHandler:

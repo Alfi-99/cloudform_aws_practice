@@ -1,10 +1,13 @@
 import json
+import os
 import sys
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 
-sys.path.insert(0, '../get_handler')
+# Tambahkan path ke get_handler secara dinamis
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(base_dir, 'get_handler'))
 
 
 class TestGetLambdaHandler:
