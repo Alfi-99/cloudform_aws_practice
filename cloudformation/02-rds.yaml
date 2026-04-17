@@ -108,14 +108,13 @@ Resources:
       AllocatedStorage: '20'               # Free Tier: max 20GB
       MaxAllocatedStorage: 100             # Auto scaling storage hingga 100GB
       StorageType: gp2
-      StorageEncrypted: false              # Free Tier tidak support enkripsi
+      # StorageEncrypted: false           # Free Tier: tidak support, jangan diset
       MultiAZ: false                       # Ubah ke true untuk High Availability
       PubliclyAccessible: false            # Private, tidak bisa diakses dari internet
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups:
         - !Ref RDSSG
-      BackupRetentionPeriod: 7            # Backup 7 hari
-      PreferredBackupWindow: '02:00-03:00'
+      BackupRetentionPeriod: 0            # Free Tier: harus 0 (tidak support backup otomatis)
       PreferredMaintenanceWindow: 'sun:04:00-sun:05:00'
       DeletionProtection: true            # Proteksi dari hapus tidak sengaja
       EnablePerformanceInsights: false    # Hemat biaya
