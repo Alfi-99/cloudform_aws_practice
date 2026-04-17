@@ -117,7 +117,7 @@ Buka: `GitHub Repo → Settings → Secrets and variables → Actions → New re
 | `AWS_ACCESS_KEY_ID` | Access Key IAM User | Output step 0.3 |
 | `AWS_SECRET_ACCESS_KEY` | Secret Key IAM User | Output step 0.3 |
 | `AWS_ACCOUNT_ID` | 12-digit Account ID | `aws sts get-caller-identity --query Account --output text` |
-| `DB_PASSWORD` | Password kuat (min 12 karakter) | Buat sendiri, contoh: `MyP@ssw0rd2024!` |
+| `DB_PASSWORD` | Password kuat (min 12 karakter) | Buat sendiri, contoh: `MyAppPass2024Secure` |
 
 ---
 
@@ -166,7 +166,7 @@ aws cloudformation describe-stacks \
 aws cloudformation deploy \
   --template-file cloudformation/02-rds.yaml \
   --stack-name myapp-rds \
-  --parameter-overrides DBPassword=MyP@ssw0rd2024! \
+  --parameter-overrides DBPassword=MyAppPass2024Secure \
   --region ap-southeast-1 \
   --capabilities CAPABILITY_IAM
 
@@ -196,7 +196,7 @@ aws s3 cp get-handler.zip s3://${BUCKET_NAME}/lambda/get-handler.zip
 aws cloudformation deploy \
   --template-file cloudformation/05-lambda.yaml \
   --stack-name myapp-lambda \
-  --parameter-overrides DBPassword=MyP@ssw0rd2024! \
+  --parameter-overrides DBPassword=MyAppPass2024Secure \
   --region ap-southeast-1 \
   --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
 
