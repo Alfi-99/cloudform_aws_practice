@@ -67,7 +67,7 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 30                          # Max 30 detik
       MemorySize: 256                      # 256MB cukup untuk query sederhana
-      ReservedConcurrentExecutions: 50     # Batasi max 50 concurrent (proteksi RDS)
+      # ReservedConcurrentExecutions: 50     # Batasi max 50 concurrent (proteksi RDS)
       Code:
         ZipFile: |
           # Placeholder — kode asli di-deploy via GitHub Actions
@@ -106,7 +106,7 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 30
       MemorySize: 256
-      ReservedConcurrentExecutions: 100    # GET bisa lebih banyak concurrent
+      # ReservedConcurrentExecutions: 100    # GET bisa lebih banyak concurrent
       Code:
         ZipFile: |
           # Placeholder — kode asli di-deploy via GitHub Actions
