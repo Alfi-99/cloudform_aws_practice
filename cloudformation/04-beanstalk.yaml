@@ -181,7 +181,18 @@ Resources:
 
         - Namespace: aws:elasticbeanstalk:application
           OptionName: Application Healthcheck URL
-          Value: /health                           # Endpoint health check app
+          Value: /health                           # Health check untuk Enhanced Health Agent
+
+        # ── ALB Target Group Health Check ─────────
+        - Namespace: aws:elasticbeanstalk:environment:process:default
+          OptionName: HealthCheckPath
+          Value: /health                           # Health check untuk ALB Target Group
+        - Namespace: aws:elasticbeanstalk:environment:process:default
+          OptionName: Port
+          Value: '8080'
+        - Namespace: aws:elasticbeanstalk:environment:process:default
+          OptionName: Protocol
+          Value: HTTP
 
         # ── Rolling Deploy ─────────────────────────
         - Namespace: aws:elasticbeanstalk:command
