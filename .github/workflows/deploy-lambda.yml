@@ -71,8 +71,8 @@ jobs:
           # Install dependencies ke folder lokal
           pip install psycopg2-binary -t ./ -q
           
-          # Buat ZIP
-          zip -r ../../post-handler-${{ github.sha }}.zip . \
+          # Buat ZIP (Gunakan * untuk menjamin file ada di root ZIP)
+          zip -r ../../post-handler-${{ github.sha }}.zip * \
             -x "*.pyc" \
             -x "__pycache__/*" \
             -x "*.egg-info/*"
@@ -86,7 +86,8 @@ jobs:
           echo "=== Packaging GET Lambda ==="
           cd lambda/get_handler
           pip install psycopg2-binary -t ./ -q
-          zip -r ../../get-handler-${{ github.sha }}.zip . \
+          # Buat ZIP (Gunakan * untuk menjamin file ada di root ZIP)
+          zip -r ../../get-handler-${{ github.sha }}.zip * \
             -x "*.pyc" \
             -x "__pycache__/*" \
             -x "*.egg-info/*"
