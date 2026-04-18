@@ -1,12 +1,16 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'STACK 2 - RDS PostgreSQL Free Tier (db.t3.micro, 20GB gp2)'
+Description: 'STACK 2 - RDS PostgreSQL Free Tier (Isolated in Private Subnet)'
 
 Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: myapp
+    Description: Prefix used for resource naming and CloudFormation exports
+
   DBPassword:
     Type: String
     NoEcho: true
-    MinLength: 8
-    Description: Password untuk RDS PostgreSQL (min 8 karakter)
+    Description: Password for the PostgreSQL database
 
 Resources:
 
@@ -14,39 +18,24 @@ Resources:
   # SECURITY GROUPS
   # ─────────────────────────────────────────────
 
-  # Security Group untuk Beanstalk (sumber koneksi ke RDS)
+  # Security Group untuk Beanstalk (agar RDS bisa mengizinkan akses dari sini)
   BeanstalkSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: myapp-beanstalk-sg
-      GroupDescription: 'Security Group untuk Elastic Beanstalk EC2'
-      VpcId: !ImportValue myapp-VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-          Description: HTTP dari internet via ALB
-        - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
-          CidrIp: 10.0.0.0/16
-          Description: App port dari dalam VPC
+      GroupDescription: Security Group for Beanstalk Instances
+      VpcId: 
+        Fn::ImportValue: !Sub '${ProjectPrefix}-VpcId'
       Tags:
         - Key: Name
-          Value: myapp-beanstalk-sg
+          Value: !Sub '${ProjectPrefix}-beanstalk-sg'
 
   # Security Group untuk Lambda
   LambdaSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub '${ProjectPrefix}-lambda-sg'
-      GroupDescription: 'Security Group untuk Lambda Functions'
-      VpcId: !ImportValue { 'Fn::Sub': '${ProjectPrefix}-VpcId' }
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-          Description: Allow all outbound
+      GroupDescription: Security Group for Lambda Functions
+      VpcId: 
+        Fn::ImportValue: !Sub '${ProjectPrefix}-VpcId'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectPrefix}-lambda-sg'
@@ -55,104 +44,84 @@ Resources:
   RDSSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub '${ProjectPrefix}-rds-sg'
-      GroupDescription: 'Security Group untuk RDS PostgreSQL'
-      VpcId: !ImportValue { 'Fn::Sub': '${ProjectPrefix}-VpcId' }
+      GroupDescription: Allow access to RDS from Beanstalk and Lambda
+      VpcId: 
+        Fn::ImportValue: !Sub '${ProjectPrefix}-VpcId'
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
           SourceSecurityGroupId: !Ref BeanstalkSG
-          Description: PostgreSQL dari Beanstalk
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
           SourceSecurityGroupId: !Ref LambdaSG
-          Description: PostgreSQL dari Lambda
       Tags:
         - Key: Name
           Value: !Sub '${ProjectPrefix}-rds-sg'
 
   # ─────────────────────────────────────────────
-  # RDS SUBNET GROUP
+  # RDS DB SUBNET GROUP
   # ─────────────────────────────────────────────
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupName: !Sub '${ProjectPrefix}-db-subnet-group'
-      DBSubnetGroupDescription: 'Subnet Group untuk RDS (Private Subnets)'
+      DBSubnetGroupDescription: Subnets for RDS Instance
       SubnetIds:
-        - !ImportValue { 'Fn::Sub': '${ProjectPrefix}-PrivateSubnet1Id' }
-        - !ImportValue { 'Fn::Sub': '${ProjectPrefix}-PrivateSubnet2Id' }
+        - Fn::ImportValue: !Sub '${ProjectPrefix}-PrivateSubnet1Id'
+        - Fn::ImportValue: !Sub '${ProjectPrefix}-PrivateSubnet2Id'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectPrefix}-db-subnet-group'
 
   # ─────────────────────────────────────────────
-  # RDS PostgreSQL Instance
-  # Free Tier: db.t3.micro, 20GB gp2, Single-AZ
-  # Untuk HA: ubah MultiAZ ke true, ganti ke db.t3.small
+  # RDS POSTGRESQL INSTANCE
   # ─────────────────────────────────────────────
   RDSInstance:
     Type: AWS::RDS::DBInstance
-    DeletionPolicy: Snapshot
-    UpdateReplacePolicy: Snapshot
     Properties:
       DBInstanceIdentifier: !Sub '${ProjectPrefix}-postgres'
-      DBInstanceClass: db.t3.micro          # Free Tier eligible
       Engine: postgres
       EngineVersion: '16.13'
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: '20'
+      DBName: myappdb
       MasterUsername: myappuser
       MasterUserPassword: !Ref DBPassword
-      DBName: myappdb
-      AllocatedStorage: '20'               # Free Tier: max 20GB
-      MaxAllocatedStorage: 100             # Auto scaling storage hingga 100GB
-      StorageType: gp2
-      # StorageEncrypted: false           # Free Tier: tidak support, jangan diset
-      MultiAZ: false                       # Ubah ke true untuk High Availability
-      PubliclyAccessible: false            # Private, tidak bisa diakses dari internet
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups:
         - !Ref RDSSG
-      BackupRetentionPeriod: 0            # Free Tier: harus 0 (tidak support backup otomatis)
-      PreferredMaintenanceWindow: 'sun:04:00-sun:05:00'
-      DeletionProtection: true            # Proteksi dari hapus tidak sengaja
-      EnablePerformanceInsights: false    # Hemat biaya
-      AutoMinorVersionUpgrade: true
+      MultiAZ: false
+      PubliclyAccessible: false
+      DeletionProtection: false
       Tags:
         - Key: Name
-          Value: myapp-rds-postgres
+          Value: !Sub '${ProjectPrefix}-rds-postgres'
 
 # ─────────────────────────────────────────────
 # OUTPUTS
 # ─────────────────────────────────────────────
 Outputs:
   DBEndpoint:
-    Description: RDS PostgreSQL Endpoint
+    Description: Hostname database RDS
     Value: !GetAtt RDSInstance.Endpoint.Address
     Export:
-      Name: myapp-DBEndpoint
-
-  DBPort:
-    Description: RDS PostgreSQL Port
-    Value: !GetAtt RDSInstance.Endpoint.Port
-    Export:
-      Name: myapp-DBPort
+      Name: !Sub '${ProjectPrefix}-DBEndpoint'
 
   BeanstalkSGId:
-    Description: Beanstalk Security Group ID
+    Description: Security Group ID untuk Beanstalk
     Value: !Ref BeanstalkSG
     Export:
-      Name: myapp-BeanstalkSGId
+      Name: !Sub '${ProjectPrefix}-BeanstalkSGId'
 
   LambdaSGId:
-    Description: Lambda Security Group ID
+    Description: Security Group ID untuk Lambda
     Value: !Ref LambdaSG
     Export:
-      Name: myapp-LambdaSGId
+      Name: !Sub '${ProjectPrefix}-LambdaSGId'
 
   RDSSGId:
-    Description: RDS Security Group ID
+    Description: Security Group ID untuk RDS
     Value: !Ref RDSSG
     Export:
-      Name: myapp-RDSSGId
+      Name: !Sub '${ProjectPrefix}-RDSSGId'

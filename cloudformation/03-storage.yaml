@@ -1,6 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'STACK 3 - Storage: S3 Bucket (App Storage) + EFS (Shared Filesystem)'
 
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: myapp
+    Description: Prefix used for resource naming and CloudFormation exports
+
 Resources:
 
   # ─────────────────────────────────────────────
@@ -9,29 +15,29 @@ Resources:
   AppStorageBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub 'myapp-storage-${AWS::AccountId}-${AWS::Region}'
+      BucketName: !Sub '${ProjectPrefix}-storage-${AWS::AccountId}-${AWS::Region}'
       VersioningConfiguration:
-        Status: Enabled                   # Versioning untuk backup file
+        Status: Enabled
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256        # Enkripsi default (gratis)
+              SSEAlgorithm: AES256
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
         IgnorePublicAcls: true
-        RestrictPublicBuckets: true       # Semua akses harus via IAM
+        RestrictPublicBuckets: true
       LifecycleConfiguration:
         Rules:
           - Id: MoveOldFilesToIA
             Status: Enabled
             Transitions:
               - TransitionInDays: 30
-                StorageClass: STANDARD_IA  # Hemat 50% setelah 30 hari
+                StorageClass: STANDARD_IA
             NoncurrentVersionTransitions:
               - TransitionInDays: 30
                 StorageClass: STANDARD_IA
-            NoncurrentVersionExpirationInDays: 90  # Hapus versi lama >90 hari
+            NoncurrentVersionExpirationInDays: 90
       CorsConfiguration:
         CorsRules:
           - AllowedHeaders:
@@ -41,28 +47,27 @@ Resources:
               - POST
               - PUT
             AllowedOrigins:
-              - '*'                       # Ganti dengan domain Amplify saat production
+              - '*'
             MaxAge: 3600
       Tags:
         - Key: Name
-          Value: myapp-storage
+          Value: !Sub '${ProjectPrefix}-storage'
 
   # ─────────────────────────────────────────────
   # EFS — Shared Filesystem untuk Elastic Beanstalk
-  # Multiple instance bisa mount filesystem yang sama
   # ─────────────────────────────────────────────
   EFSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: myapp-efs-sg
-      GroupDescription: 'Security Group untuk EFS'
-      VpcId: !ImportValue !Sub '${ProjectPrefix}-VpcId'
+      GroupDescription: Security Group for EFS
+      VpcId: 
+        Fn::ImportValue: !Sub '${ProjectPrefix}-VpcId'
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 2049
           ToPort: 2049
-          CidrIp: 10.0.0.0/16            # NFS port dari dalam VPC
-          Description: NFS dari Beanstalk instances
+          CidrIp: 10.0.0.0/16
+          Description: NFS from Beanstalk instances
       Tags:
         - Key: Name
           Value: !Sub '${ProjectPrefix}-efs-sg'
@@ -71,30 +76,30 @@ Resources:
     Type: AWS::EFS::FileSystem
     Properties:
       Encrypted: true
-      PerformanceMode: generalPurpose     # Cocok untuk web app
-      ThroughputMode: bursting            # Gratis burst, hemat biaya
+      PerformanceMode: generalPurpose
+      ThroughputMode: bursting
       LifecyclePolicies:
-        - TransitionToIA: AFTER_30_DAYS   # Hemat biaya data jarang diakses
-        - TransitionToPrimaryStorageClass: AFTER_1_ACCESS  # Balik ke standar jika diakses
+        - TransitionToIA: AFTER_30_DAYS
+        - TransitionToPrimaryStorageClass: AFTER_1_ACCESS
       FileSystemTags:
         - Key: Name
           Value: !Sub '${ProjectPrefix}-efs'
 
-  # Mount Target di Private Subnet 1
   EFSMountTarget1:
     Type: AWS::EFS::MountTarget
     Properties:
       FileSystemId: !Ref EFSFileSystem
-      SubnetId: !ImportValue !Sub '${ProjectPrefix}-PrivateSubnet1Id'
+      SubnetId: 
+        Fn::ImportValue: !Sub '${ProjectPrefix}-PrivateSubnet1Id'
       SecurityGroups:
         - !Ref EFSSecurityGroup
 
-  # Mount Target di Private Subnet 2 (untuk HA)
   EFSMountTarget2:
     Type: AWS::EFS::MountTarget
     Properties:
       FileSystemId: !Ref EFSFileSystem
-      SubnetId: !ImportValue !Sub '${ProjectPrefix}-PrivateSubnet2Id'
+      SubnetId: 
+        Fn::ImportValue: !Sub '${ProjectPrefix}-PrivateSubnet2Id'
       SecurityGroups:
         - !Ref EFSSecurityGroup
 
@@ -124,4 +129,4 @@ Outputs:
     Description: EFS DNS Name untuk mount
     Value: !Sub '${EFSFileSystem}.efs.${AWS::Region}.amazonaws.com'
     Export:
-      Name: myapp-EFSDnsName
+      Name: !Sub '${ProjectPrefix}-EFSDnsName'
