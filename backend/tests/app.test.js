@@ -19,7 +19,7 @@ describe('Backend API Tests', () => {
     test('returns API info', async () => {
       const res = await request(app).get('/');
       expect(res.statusCode).toBe(200);
-      expect(res.body).toHaveProperty('name', 'myapp-backend');
+      expect(res.body).toHaveProperty('name', `${process.env.PROJECT_PREFIX || 'myapp'}-backend`);
       expect(res.body).toHaveProperty('endpoints');
     });
   });

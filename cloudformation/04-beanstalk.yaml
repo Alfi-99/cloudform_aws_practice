@@ -183,6 +183,9 @@ Resources:
         - Namespace: aws:elasticbeanstalk:application:environment
           OptionName: S3_BUCKET
           Value: !Sub '${ProjectPrefix}-storage-${AWS::AccountId}-${AWS::Region}'
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: PROJECT_PREFIX
+          Value: !Ref ProjectPrefix
 
 # ─────────────────────────────────────────────
 # OUTPUTS

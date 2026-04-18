@@ -72,7 +72,7 @@ app.get('/health', (req, res) => {
 // Info endpoint
 app.get('/', (req, res) => {
   res.json({
-    name: 'myapp-backend',
+    name: `${process.env.PROJECT_PREFIX || 'myapp'}-backend`,
     version: '1.0.0',
     endpoints: ['GET /health', 'GET /data', 'POST /data']
   });

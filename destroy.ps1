@@ -1,9 +1,10 @@
+$PREFIX = "alfi"
 $REGION = "ap-southeast-1"
 $ACCOUNT_ID = aws sts get-caller-identity --query "Account" --output text
-$ARTIFACT_BUCKET = "myapp-artifacts-$ACCOUNT_ID"
-$STORAGE_BUCKET = "myapp-storage-$ACCOUNT_ID-$REGION"
+$ARTIFACT_BUCKET = "$PREFIX-artifacts-$ACCOUNT_ID"
+$STORAGE_BUCKET = "$PREFIX-storage-$ACCOUNT_ID-$REGION"
 
-Write-Host "=== 🗑️ MEMULAI PEMBERSIHAN TOTAL AWS ===" -ForegroundColor Yellow
+Write-Host "=== 🗑️ MEMULAI PEMBERSIHAN TOTAL AWS (Prefix: $PREFIX) ===" -ForegroundColor Yellow
 
 # 1. Kosongkan S3 Buckets
 foreach ($bucket in @($ARTIFACT_BUCKET, $STORAGE_BUCKET)) {
@@ -20,11 +21,11 @@ foreach ($bucket in @($ARTIFACT_BUCKET, $STORAGE_BUCKET)) {
 
 # 2. Update RDS - Matikan Deletion Protection
 Write-Host "🔓 Menonaktifkan RDS Deletion Protection..."
-aws rds modify-db-instance --db-instance-identifier myapp-postgres --no-deletion-protection --apply-immediately --region $REGION 2>$null
+aws rds modify-db-instance --db-instance-identifier "$PREFIX-postgres" --no-deletion-protection --apply-immediately --region $REGION 2>$null
 Start-Sleep -Seconds 30
 
 # 3. Hapus Stack berurutan
-$stacks = @("myapp-apigateway", "myapp-lambda", "myapp-beanstalk", "myapp-storage", "myapp-rds", "myapp-vpc")
+$stacks = @("$PREFIX-apigateway", "$PREFIX-lambda", "$PREFIX-beanstalk", "$PREFIX-storage", "$PREFIX-rds", "$PREFIX-vpc")
 
 foreach ($stack in $stacks) {
     Write-Host "🗑️ Menghapus stack: $stack..."
