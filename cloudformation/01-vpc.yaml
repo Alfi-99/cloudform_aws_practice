@@ -1,5 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'STACK 1 - VPC with Public/Private Subnets, NAT Gateway (High Availability 2 AZs)'
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: myapp
+    Description: Prefix used for resource naming and CloudFormation exports
 
 Resources:
 
@@ -14,14 +18,14 @@ Resources:
       EnableDnsSupport: true
       Tags:
         - Key: Name
-          Value: myapp-vpc
+          Value: !Sub '${ProjectPrefix}-vpc'
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: myapp-igw
+          Value: !Sub '${ProjectPrefix}-igw'
 
   VPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -41,7 +45,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: myapp-public-subnet-1
+          Value: !Sub '${ProjectPrefix}-public-subnet-1'
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
@@ -52,7 +56,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: myapp-public-subnet-2
+          Value: !Sub '${ProjectPrefix}-public-subnet-2'
 
   # ─────────────────────────────────────────────
   # PRIVATE SUBNETS (untuk Beanstalk, RDS, Lambda)
@@ -65,7 +69,7 @@ Resources:
       AvailabilityZone: !Select [0, !GetAZs '']
       Tags:
         - Key: Name
-          Value: myapp-private-subnet-1
+          Value: !Sub '${ProjectPrefix}-private-subnet-1'
 
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
@@ -75,7 +79,7 @@ Resources:
       AvailabilityZone: !Select [1, !GetAZs '']
       Tags:
         - Key: Name
-          Value: myapp-private-subnet-2
+          Value: !Sub '${ProjectPrefix}-private-subnet-2'
 
   # ─────────────────────────────────────────────
   # NAT GATEWAY (agar Private Subnet bisa akses internet)
@@ -87,7 +91,7 @@ Resources:
       Domain: vpc
       Tags:
         - Key: Name
-          Value: myapp-nat-eip
+          Value: !Sub '${ProjectPrefix}-nat-eip'
 
   NatGateway:
     Type: AWS::EC2::NatGateway
@@ -96,7 +100,7 @@ Resources:
       SubnetId: !Ref PublicSubnet1
       Tags:
         - Key: Name
-          Value: myapp-nat-gateway
+          Value: !Sub '${ProjectPrefix}-nat-gateway'
 
   # ─────────────────────────────────────────────
   # ROUTE TABLES
@@ -107,7 +111,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: myapp-public-rt
+          Value: !Sub '${ProjectPrefix}-public-rt'
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -135,7 +139,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: myapp-private-rt
+          Value: !Sub '${ProjectPrefix}-private-rt'
 
   PrivateRoute:
     Type: AWS::EC2::Route
@@ -164,28 +168,28 @@ Outputs:
     Description: VPC ID
     Value: !Ref VPC
     Export:
-      Name: myapp-VpcId
+      Name: !Sub '${ProjectPrefix}-VpcId'
 
   PublicSubnet1Id:
     Description: Public Subnet 1 ID
     Value: !Ref PublicSubnet1
     Export:
-      Name: myapp-PublicSubnet1Id
+      Name: !Sub '${ProjectPrefix}-PublicSubnet1Id'
 
   PublicSubnet2Id:
     Description: Public Subnet 2 ID
     Value: !Ref PublicSubnet2
     Export:
-      Name: myapp-PublicSubnet2Id
+      Name: !Sub '${ProjectPrefix}-PublicSubnet2Id'
 
   PrivateSubnet1Id:
     Description: Private Subnet 1 ID
     Value: !Ref PrivateSubnet1
     Export:
-      Name: myapp-PrivateSubnet1Id
+      Name: !Sub '${ProjectPrefix}-PrivateSubnet1Id'
 
   PrivateSubnet2Id:
     Description: Private Subnet 2 ID
     Value: !Ref PrivateSubnet2
     Export:
-      Name: myapp-PrivateSubnet2Id
+      Name: !Sub '${ProjectPrefix}-PrivateSubnet2Id'
