@@ -16,6 +16,23 @@ def get_db_connection():
     )
 
 
+def ensure_table(conn):
+    """Buat tabel jika belum ada."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS sensor_data (
+                id          SERIAL PRIMARY KEY,
+                name        VARCHAR(100) NOT NULL,
+                value       FLOAT NOT NULL,
+                category    VARCHAR(50) DEFAULT 'default',
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_sensor_category ON sensor_data(category);
+            CREATE INDEX IF NOT EXISTS idx_sensor_created ON sensor_data(created_at DESC);
+        """)
+        conn.commit()
+
+
 def lambda_handler(event, context):
     """
     Lambda GET Handler
@@ -45,6 +62,7 @@ def lambda_handler(event, context):
             limit, offset = 100, 0
 
         conn = get_db_connection()
+        ensure_table(conn)
 
         with conn.cursor() as cur:
             # ── Query data utama ──────────────────────────
