@@ -78,6 +78,16 @@ jobs:
           echo "Package size:"
           ls -lh ../backend-${{ github.sha }}.zip
 
+      - name: Create Artifact Bucket if not exists
+        run: |
+          BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
+          if ! aws s3 ls "s3://${BUCKET}" 2>/dev/null; then
+            echo "Creating bucket ${BUCKET}..."
+            aws s3 mb s3://${BUCKET} --region ${{ env.AWS_REGION }}
+          else
+            echo "Bucket ${BUCKET} already exists."
+          fi
+
       - name: Upload Artifact to S3
         run: |
           BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"

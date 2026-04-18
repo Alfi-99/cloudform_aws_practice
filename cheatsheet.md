@@ -1,70 +1,73 @@
-# 📑 AWS Full-Stack CLI Cheat Sheet (Windows PowerShell Edition)
+# 🚀 AWS Infrastructure Cheat Sheet (Windows PowerShell)
 
-Cek panduan ini jika Anda ingin mengelola infrastruktur langsung dari terminal Windows. Semua perintah di bawah ini sudah disesuaikan untuk **PowerShell**.
+Ikuti panduan ini langkah demi langkah agar konfigurasimu tidak error.
 
 ---
 
-## 🏗️ 1. Persiapan Variabel
-Setial kali Anda membuka terminal baru, pastikan Anda menjalankan ini (Ganti `alfi` dengan prefix Anda):
+## 1. Persiapan GitHub (PENTING!)
+Sebelum push ke GitHub, kamu **WAJIB** mengisi konfigurasi di menu **Settings > Secrets and variables > Actions**:
+
+### 🔒 Secrets (Rahasia)
+*   `AWS_ACCESS_KEY_ID`: Dari console IAM AWS.
+*   `AWS_SECRET_ACCESS_KEY`: Dari console IAM AWS.
+*   `AWS_ACCOUNT_ID`: 12 digit nomor akun AWS-mu.
+*   `DB_PASSWORD`: Password untuk database RDS (bebas, minimal 8 karakter).
+
+### 📊 Variables (Variabel)
+*   `PROJECT_PREFIX`: Nama unikmu (contoh: `alfi`). **WAJIB SAMA** dengan yang kamu pakai di PowerShell.
+*   `AWS_REGION`: Isi dengan `ap-southeast-1`.
+
+---
+
+## 2. Persiapan PowerShell (Lakukan TIAP BUKA Terminal)
+Hapus stack lama jika statusnya `ROLLBACK_COMPLETE`, lalu set variabel ini:
+
 ```powershell
+# Set nama unikmu dan region
 $PREFIX = "alfi"
 $REGION = "ap-southeast-1"
+
+# Ambil Account ID untuk bucket naming
+$ACCOUNT_ID = aws sts get-caller-identity --query "Account" --output text
 ```
 
 ---
 
-## 🏗️ 2. Deployment Infrastruktur (CloudFormation)
-Jalankan perintah ini secara berurutan:
+## 3. Deployment Infrastruktur (Urutan 1 - 6)
 
 ```powershell
-# STACK 1: VPC
+# 1. VPC
 aws cloudformation deploy --template-file cloudformation/01-vpc.yaml --stack-name "$PREFIX-vpc" --parameter-overrides ProjectPrefix="$PREFIX" --region "$REGION"
 
-# STACK 2: RDS (Ganti YourPassword123)
+# 2. RDS (Password ambil dari input atau set manual)
 aws cloudformation deploy --template-file cloudformation/02-rds.yaml --stack-name "$PREFIX-rds" --parameter-overrides ProjectPrefix="$PREFIX" DBPassword=YourPassword123 --capabilities CAPABILITY_IAM --region "$REGION"
 
-# STACK 3: Storage
+# 3. Storage
 aws cloudformation deploy --template-file cloudformation/03-storage.yaml --stack-name "$PREFIX-storage" --parameter-overrides ProjectPrefix="$PREFIX" --region "$REGION"
 
-# STACK 4: Elastic Beanstalk
-aws cloudformation deploy --template-file cloudformation/04-beanstalk.yaml --stack-name "$PREFIX-beanstalk" --parameter-overrides ProjectPrefix="$PREFIX" DBPassword=YourPassword123 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --region "$REGION"
+# 4. Beanstalk (Backend)
+aws cloudformation deploy --template-file cloudformation/04-beanstalk.yaml --stack-name "$PREFIX-beanstalk" --parameter-overrides ProjectPrefix="$PREFIX" DBPassword=YourPassword123 --capabilities CAPABILITY_IAM --region "$REGION"
 
-# STACK 5: Lambda Functions (Gunakan GitHub Actions saja untuk hasil terbaik)
+# 5. Lambda
 aws cloudformation deploy --template-file cloudformation/05-lambda.yaml --stack-name "$PREFIX-lambda" --parameter-overrides ProjectPrefix="$PREFIX" DBPassword=YourPassword123 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --region "$REGION"
 
-# STACK 6: API Gateway
+# 6. API Gateway
 aws cloudformation deploy --template-file cloudformation/06-apigateway.yaml --stack-name "$PREFIX-apigateway" --parameter-overrides ProjectPrefix="$PREFIX" --region "$REGION"
 ```
 
 ---
 
-## 📦 3. Manual Update Lambda (Jika Push GitHub Gagal)
-Jika Anda terpaksa update manual dari Windows, gunakan perintah ini agar ZIP-nya bersih:
+## 4. Testing & Verifikasi
 
 ```powershell
-# Update GET Handler
-Compress-Archive -Path lambda/get_handler/handler.py -DestinationPath lambda/get_handler_clean.zip -Force
-aws lambda update-function-code --function-name "$PREFIX-get-handler" --zip-file fileb://lambda/get_handler_clean.zip --region "$REGION"
+# Ambil URL API Gateway secara otomatis
+$API_URL = aws cloudformation describe-stacks --stack-name "$PREFIX-apigateway" --query 'Stacks[0].Outputs[?OutputKey==`APIEndpoint`].OutputValue' --output text
 
-# Update POST Handler
-Compress-Archive -Path lambda/post_handler/handler.py -DestinationPath lambda/post_handler_clean.zip -Force
-aws lambda update-function-code --function-name "$PREFIX-post-handler" --zip-file fileb://lambda/post_handler_clean.zip --region "$REGION"
-```
-
----
-
-## 🧪 4. Testing API (Smoke Test)
-Gunakan perintah ini untuk memastikan sistem berjalan:
-
-```powershell
-# Mendapatkan URL API Gateway
-$API_URL = $(aws cloudformation describe-stacks --stack-name "$PREFIX-apigateway" --region "$REGION" --query 'Stacks[0].Outputs[?OutputKey==`APIEndpoint`].OutputValue' --output text)
-
-# Test POST (Simpan Data)
-$body = @{ name = "tes-sensor"; value = 25.5; category = "Suhu" } | ConvertTo-Json
+# TEST POST (Kirim Data)
+$body = @{ name = "sensor-01"; value = 25.5; category = "suhu" } | ConvertTo-Json
 Invoke-RestMethod -Uri "$API_URL/data" -Method Post -Body $body -ContentType "application/json"
 
-# Test GET (Ambil Data)
+# TEST GET (Ambil Data)
 Invoke-RestMethod -Uri "$API_URL/data"
 ```
 
