@@ -1,6 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'STACK 6 - API Gateway REST API: routing POST dan GET ke Lambda'
 
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: myapp
+    Description: Prefix used for resource naming and CloudFormation exports
+
 Resources:
 
   # ─────────────────────────────────────────────
@@ -9,14 +15,14 @@ Resources:
   RestAPI:
     Type: AWS::ApiGateway::RestApi
     Properties:
-      Name: myapp-api
-      Description: 'REST API untuk myapp — POST dan GET data'
+      Name: !Sub '${ProjectPrefix}-api'
+      Description: !Sub 'REST API untuk ${ProjectPrefix} — POST dan GET data'
       EndpointConfiguration:
         Types:
           - REGIONAL                       # Regional endpoint, lebih murah dari Edge
       Tags:
         - Key: Name
-          Value: myapp-rest-api
+          Value: !Sub '${ProjectPrefix}-rest-api'
 
   # ─────────────────────────────────────────────
   # RESOURCE /data
@@ -43,7 +49,8 @@ Resources:
         IntegrationHttpMethod: POST
         Uri: !Sub
           - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
-          - LambdaArn: !ImportValue myapp-PostLambdaArn
+          - LambdaArn:
+              Fn::ImportValue: !Sub '${ProjectPrefix}-PostLambdaArn'
       MethodResponses:
         - StatusCode: '200'
         - StatusCode: '201'
@@ -69,7 +76,8 @@ Resources:
         IntegrationHttpMethod: POST
         Uri: !Sub
           - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
-          - LambdaArn: !ImportValue myapp-GetLambdaArn
+          - LambdaArn:
+              Fn::ImportValue: !Sub '${ProjectPrefix}-GetLambdaArn'
       MethodResponses:
         - StatusCode: '200'
         - StatusCode: '500'
@@ -129,7 +137,6 @@ Resources:
           HttpMethod: '*'
           ThrottlingBurstLimit: 200        # Max burst 200 request sekaligus
           ThrottlingRateLimit: 100         # Max 100 request/detik steady state
-          # Tuntaskan free tier API Gateway (hapus LoggingLevel agar tidak perlu set IAM Role akun global untuk CloudWatch Logs)
 
   # ─────────────────────────────────────────────
   # Lambda Permissions — izinkan API Gateway invoke Lambda
@@ -137,7 +144,8 @@ Resources:
   PostLambdaPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !ImportValue myapp-PostLambdaArn
+      FunctionName:
+        Fn::ImportValue: !Sub '${ProjectPrefix}-PostLambdaArn'
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestAPI}/*/POST/data'
@@ -145,7 +153,8 @@ Resources:
   GetLambdaPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !ImportValue myapp-GetLambdaArn
+      FunctionName:
+        Fn::ImportValue: !Sub '${ProjectPrefix}-GetLambdaArn'
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestAPI}/*/GET/data'
@@ -181,10 +190,10 @@ Outputs:
     Description: URL API Gateway — gunakan sebagai VITE_API_URL di frontend
     Value: !Sub 'https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/v1'
     Export:
-      Name: myapp-APIEndpoint
+      Name: !Sub '${ProjectPrefix}-APIEndpoint'
 
   RestAPIId:
     Description: REST API ID
     Value: !Ref RestAPI
     Export:
-      Name: myapp-RestAPIId
+      Name: !Sub '${ProjectPrefix}-RestAPIId'

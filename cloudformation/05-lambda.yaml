@@ -2,6 +2,10 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'STACK 5 - Lambda Functions Python 3.12: POST handler dan GET handler'
 
 Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: myapp
+    Description: Prefix used for resource naming and CloudFormation exports
   DBPassword:
     Type: String
     NoEcho: true
@@ -14,7 +18,7 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: myapp-lambda-execution-role
+      RoleName: !Sub '${ProjectPrefix}-lambda-execution-role'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -26,7 +30,7 @@ Resources:
         # Akses VPC (wajib jika Lambda di dalam VPC untuk akses RDS)
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
       Policies:
-        - PolicyName: LambdaPermissions
+        - PolicyName: !Sub '${ProjectPrefix}-LambdaPermissions'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
