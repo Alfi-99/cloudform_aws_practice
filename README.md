@@ -36,46 +36,57 @@ graph TD
 
 ---
 
-## 🛠️ Langkah Cepat "Clone & Run"
+## 🚀 Multi-Project & Multi-User Support
 
-### 1. Persiapan Akun & IAM
-1. Buat IAM User di AWS Console (misal: `github-actions-user`).
-2. Berikan izin `PowerUserAccess` dan `AdministratorAccess` (hanya untuk setup pertama kali).
-3. Buat **Access Key ID** dan **Secret Access Key**.
+Sistem ini mendukung deployment banyak instance (misal: production, staging, atau dev per developer) dalam **satu akun AWS yang sama** tanpa bentrok.
 
-### 2. Setup GitHub Secrets
-Buka `Settings` -> `Secrets and variables` -> `Actions` di Repo GitHub Anda, tambahkan:
+### Cara Mengubah Nama Project
+Secara default, prefix resource adalah `myapp`. Jika Anda ingin menggunakan nama lain (misal: `alfi-project`):
 
-| Secret Name | Deskripsi |
-|---|---|
-| `AWS_ACCESS_KEY_ID` | Access Key ID dari User IAM |
-| `AWS_SECRET_ACCESS_KEY` | Secret Access Key dari User IAM |
-| `AWS_ACCOUNT_ID` | ID Akun AWS Anda (12 digit) |
-| `DB_PASSWORD` | Password untuk RDS PostgreSQL |
-| `AMPLIFY_APP_ID` | (Diisi setelah langkah 4) |
-| `VITE_API_URL` | (Diisi setelah langkah 3) |
+1.  Buka **GitHub Repository** Anda.
+2.  Pergi ke **Settings** > **Secrets and variables** > **Actions**.
+3.  Klik tab **Variables**.
+4.  Klik **New repository variable**.
+5.  Isi Name: `PROJECT_PREFIX` dan Value: `nama-anda` (misal: `alfi`).
+6.  Trigger ulang workflow deployment.
 
-### 3. Deploy Infrastruktur (Otomatis)
-Cukup `git push` ke branch `main`. Pipeline **"Deploy Infrastructure"** akan berjalan dan membuat VPC, RDS, Lambda, dan Gateway.
-
-> [!TIP]
-> Setelah Stack `myapp-apigateway` selesai, ambil **APIEndpoint** dari tab *Outputs* di CloudFormation. Masukkan URL tersebut ke GitHub Secret **`VITE_API_URL`**.
-
-### 4. Setup Frontend (Amplify)
-1. Hubungkan repo ini ke **AWS Amplify Console**.
-2. Masukkan `AMPLIFY_APP_ID` yang dihasilkan ke GitHub Secrets.
-3. Pastikan `VITE_API_URL` sudah terisi di **Environment Variables** Amplify Console.
+Semua resource (VPC, RDS, S3, dll) akan dibuat dengan prefix tersebut, sehingga tidak akan menabrak infrastruktur orang lain.
 
 ---
 
-## 📁 Struktur Root Folder
-```text
-├── .github/workflows/      # Otomatisasi CI/CD (GitHub Actions)
-├── cloudformation/         # Definisi Infrastruktur (YAML)
-├── frontend/               # Dashboard React + Vite
-├── backend/                # Server Node.js (Optional Management)
-└── lambda/                 # Logic Serverless (Python)
-```
+## 🛠️ Langkah Deployment (Clone & Run)
+
+### 1. Persiapan Akun AWS
+Pastikan Anda memiliki User IAM dengan akses `AdministratorAccess` (untuk mempermudah testing) dan ambil **Access Key ID** serta **Secret Access Key**.
+
+### 2. Konfigurasi GitHub Secrets & Variables
+Buka Repository Anda di GitHub dan tambahkan data berikut:
+
+| Type | Name | Value (Contoh) | Deskripsi |
+| :--- | :--- | :--- | :--- |
+| **Secret** | `AWS_ACCESS_KEY_ID` | `AKIA...` | Key ID AWS Anda |
+| **Secret** | `AWS_SECRET_ACCESS_KEY` | `wJalr...` | Secret Key AWS Anda |
+| **Secret** | `AWS_ACCOUNT_ID` | `123456789012` | ID Akun AWS (12 digit) |
+| **Secret** | `DB_PASSWORD` | `PasswordAman123` | Password untuk RDS PostgreSQL |
+| **Variable** | `PROJECT_PREFIX` | `my-unique-app` | Prefix nama resource (opsional) |
+
+### 3. Deploy Infrastruktur
+Push ke branch `main` atau jalankan manual di tab **Actions**:
+1. Pilih workflow **🏗️ Deploy Infrastructure**.
+2. Klik **Run workflow**.
+3. Tunggu hingga selesai (~15-20 menit).
+
+### 4. Deploy Backend & Lambda
+Setelah infrastruktur selesai, jalankan workflow:
+- **🖥️ Deploy Backend**: Untuk update API di Elastic Beanstalk.
+- **⚡ Deploy Lambda**: Untuk update logic serverless.
+
+### 5. Konfigurasi Frontend
+1. Ambil `APIEndpoint` dari output workflow **Deploy Infrastructure**.
+2. Tambahkan ke GitHub Secrets: `VITE_API_URL`.
+3. Deploy frontend via AWS Amplify Console (lihat panduan di bawah).
+
+---
 
 ## 🧪 Cara Testing Lokal & Smoke Test
 Setelah semua LIVE, Anda bisa menguji API Gateway secara langsung:

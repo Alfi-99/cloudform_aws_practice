@@ -56,7 +56,7 @@ Resources:
     Properties:
       GroupName: myapp-efs-sg
       GroupDescription: 'Security Group untuk EFS'
-      VpcId: !ImportValue myapp-VpcId
+      VpcId: !ImportValue !Sub '${ProjectPrefix}-VpcId'
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 2049
@@ -65,7 +65,7 @@ Resources:
           Description: NFS dari Beanstalk instances
       Tags:
         - Key: Name
-          Value: myapp-efs-sg
+          Value: !Sub '${ProjectPrefix}-efs-sg'
 
   EFSFileSystem:
     Type: AWS::EFS::FileSystem
@@ -78,14 +78,14 @@ Resources:
         - TransitionToPrimaryStorageClass: AFTER_1_ACCESS  # Balik ke standar jika diakses
       FileSystemTags:
         - Key: Name
-          Value: myapp-efs
+          Value: !Sub '${ProjectPrefix}-efs'
 
   # Mount Target di Private Subnet 1
   EFSMountTarget1:
     Type: AWS::EFS::MountTarget
     Properties:
       FileSystemId: !Ref EFSFileSystem
-      SubnetId: !ImportValue myapp-PrivateSubnet1Id
+      SubnetId: !ImportValue !Sub '${ProjectPrefix}-PrivateSubnet1Id'
       SecurityGroups:
         - !Ref EFSSecurityGroup
 
@@ -94,7 +94,7 @@ Resources:
     Type: AWS::EFS::MountTarget
     Properties:
       FileSystemId: !Ref EFSFileSystem
-      SubnetId: !ImportValue myapp-PrivateSubnet2Id
+      SubnetId: !ImportValue !Sub '${ProjectPrefix}-PrivateSubnet2Id'
       SecurityGroups:
         - !Ref EFSSecurityGroup
 
@@ -106,19 +106,19 @@ Outputs:
     Description: Nama S3 Bucket untuk storage aplikasi
     Value: !Ref AppStorageBucket
     Export:
-      Name: myapp-AppStorageBucketName
+      Name: !Sub '${ProjectPrefix}-AppStorageBucketName'
 
   AppStorageBucketArn:
     Description: ARN S3 Bucket
     Value: !GetAtt AppStorageBucket.Arn
     Export:
-      Name: myapp-AppStorageBucketArn
+      Name: !Sub '${ProjectPrefix}-AppStorageBucketArn'
 
   EFSFileSystemId:
     Description: EFS File System ID
     Value: !Ref EFSFileSystem
     Export:
-      Name: myapp-EFSFileSystemId
+      Name: !Sub '${ProjectPrefix}-EFSFileSystemId'
 
   EFSDnsName:
     Description: EFS DNS Name untuk mount

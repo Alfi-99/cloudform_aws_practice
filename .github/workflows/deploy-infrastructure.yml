@@ -18,6 +18,7 @@ on:
 
 env:
   AWS_REGION: ap-southeast-1
+  PROJECT_PREFIX: ${{ vars.PROJECT_PREFIX || 'myapp' }}
 
 jobs:
   validate:
@@ -63,7 +64,7 @@ jobs:
 
       - name: Ensure Artifact Bucket Exists
         run: |
-          BUCKET="myapp-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
+          BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
           if ! aws s3 ls "s3://${BUCKET}" 2>/dev/null; then
             echo "Creating artifact bucket: ${BUCKET}"
             aws s3 mb s3://${BUCKET} --region ${{ env.AWS_REGION }}
@@ -76,7 +77,7 @@ jobs:
 
       - name: Upload Templates to S3
         run: |
-          BUCKET="myapp-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
+          BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
           aws s3 sync cloudformation/ s3://${BUCKET}/cloudformation/ \
             --exclude "*" --include "*.yaml" \
             --region ${{ env.AWS_REGION }}
@@ -87,24 +88,20 @@ jobs:
           echo "=== Deploying VPC Stack ==="
           aws cloudformation deploy \
             --template-file cloudformation/01-vpc.yaml \
-            --stack-name myapp-vpc \
+            --stack-name ${{ env.PROJECT_PREFIX }}-vpc \
             --region ${{ env.AWS_REGION }} \
+            --parameter-overrides ProjectPrefix=${{ env.PROJECT_PREFIX }} \
             --capabilities CAPABILITY_IAM \
             --no-fail-on-empty-changeset
-          
-          STATUS=$(aws cloudformation describe-stacks \
-            --stack-name myapp-vpc \
-            --query 'Stacks[0].StackStatus' --output text)
-          echo "VPC Stack Status: $STATUS"
 
       - name: Deploy Stack 2 - RDS
         run: |
           echo "=== Deploying RDS Stack ==="
           aws cloudformation deploy \
             --template-file cloudformation/02-rds.yaml \
-            --stack-name myapp-rds \
+            --stack-name ${{ env.PROJECT_PREFIX }}-rds \
             --region ${{ env.AWS_REGION }} \
-            --parameter-overrides DBPassword=${{ secrets.DB_PASSWORD }} \
+            --parameter-overrides ProjectPrefix=${{ env.PROJECT_PREFIX }} DBPassword=${{ secrets.DB_PASSWORD }} \
             --capabilities CAPABILITY_IAM \
             --no-fail-on-empty-changeset
 
@@ -113,8 +110,9 @@ jobs:
           echo "=== Deploying Storage Stack ==="
           aws cloudformation deploy \
             --template-file cloudformation/03-storage.yaml \
-            --stack-name myapp-storage \
+            --stack-name ${{ env.PROJECT_PREFIX }}-storage \
             --region ${{ env.AWS_REGION }} \
+            --parameter-overrides ProjectPrefix=${{ env.PROJECT_PREFIX }} \
             --capabilities CAPABILITY_IAM \
             --no-fail-on-empty-changeset
 
@@ -123,16 +121,16 @@ jobs:
           echo "=== Deploying Beanstalk Stack ==="
           aws cloudformation deploy \
             --template-file cloudformation/04-beanstalk.yaml \
-            --stack-name myapp-beanstalk \
+            --stack-name ${{ env.PROJECT_PREFIX }}-beanstalk \
             --region ${{ env.AWS_REGION }} \
-            --parameter-overrides DBPassword=${{ secrets.DB_PASSWORD }} \
+            --parameter-overrides ProjectPrefix=${{ env.PROJECT_PREFIX }} DBPassword=${{ secrets.DB_PASSWORD }} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset
 
       - name: Package & Upload Lambda Code
         run: |
           echo "=== Packaging Lambda Functions ==="
-          BUCKET="myapp-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
+          BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
           
           # POST Lambda
           cd lambda/post_handler
@@ -155,9 +153,9 @@ jobs:
           echo "=== Deploying Lambda Stack ==="
           aws cloudformation deploy \
             --template-file cloudformation/05-lambda.yaml \
-            --stack-name myapp-lambda \
+            --stack-name ${{ env.PROJECT_PREFIX }}-lambda \
             --region ${{ env.AWS_REGION }} \
-            --parameter-overrides DBPassword=${{ secrets.DB_PASSWORD }} \
+            --parameter-overrides ProjectPrefix=${{ env.PROJECT_PREFIX }} DBPassword=${{ secrets.DB_PASSWORD }} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset
 
@@ -166,8 +164,9 @@ jobs:
           echo "=== Deploying API Gateway Stack ==="
           aws cloudformation deploy \
             --template-file cloudformation/06-apigateway.yaml \
-            --stack-name myapp-apigateway \
+            --stack-name ${{ env.PROJECT_PREFIX }}-apigateway \
             --region ${{ env.AWS_REGION }} \
+            --parameter-overrides ProjectPrefix=${{ env.PROJECT_PREFIX }} \
             --capabilities CAPABILITY_IAM \
             --no-fail-on-empty-changeset
 
@@ -177,11 +176,12 @@ jobs:
           echo "       DEPLOYMENT COMPLETE!           "
           echo "======================================"
           
-          for stack in myapp-vpc myapp-rds myapp-storage myapp-beanstalk myapp-lambda myapp-apigateway; do
+          for stack in vpc rds storage beanstalk lambda apigateway; do
+            FULL_STACK_NAME="${{ env.PROJECT_PREFIX }}-$stack"
             echo ""
-            echo "--- $stack ---"
+            echo "--- $FULL_STACK_NAME ---"
             STATUS=$(aws cloudformation describe-stacks \
-              --stack-name $stack \
+              --stack-name $FULL_STACK_NAME \
               --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
             echo "Status: $STATUS"
           done
@@ -189,13 +189,13 @@ jobs:
           echo ""
           echo "=== API Gateway Endpoint ==="
           aws cloudformation describe-stacks \
-            --stack-name myapp-apigateway \
+            --stack-name ${{ env.PROJECT_PREFIX }}-apigateway \
             --query 'Stacks[0].Outputs[?OutputKey==`APIEndpoint`].OutputValue' \
             --output text
           
           echo ""
           echo "=== Beanstalk URL ==="
           aws cloudformation describe-stacks \
-            --stack-name myapp-beanstalk \
+            --stack-name ${{ env.PROJECT_PREFIX }}-beanstalk \
             --query 'Stacks[0].Outputs[?OutputKey==`BeanstalkURL`].OutputValue' \
             --output text

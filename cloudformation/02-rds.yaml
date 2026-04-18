@@ -40,24 +40,24 @@ Resources:
   LambdaSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: myapp-lambda-sg
+      GroupName: !Sub '${ProjectPrefix}-lambda-sg'
       GroupDescription: 'Security Group untuk Lambda Functions'
-      VpcId: !ImportValue myapp-VpcId
+      VpcId: !ImportValue { 'Fn::Sub': '${ProjectPrefix}-VpcId' }
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
           Description: Allow all outbound
       Tags:
         - Key: Name
-          Value: myapp-lambda-sg
+          Value: !Sub '${ProjectPrefix}-lambda-sg'
 
   # Security Group untuk RDS (hanya terima dari Beanstalk & Lambda)
   RDSSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: myapp-rds-sg
+      GroupName: !Sub '${ProjectPrefix}-rds-sg'
       GroupDescription: 'Security Group untuk RDS PostgreSQL'
-      VpcId: !ImportValue myapp-VpcId
+      VpcId: !ImportValue { 'Fn::Sub': '${ProjectPrefix}-VpcId' }
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5432
@@ -71,7 +71,7 @@ Resources:
           Description: PostgreSQL dari Lambda
       Tags:
         - Key: Name
-          Value: myapp-rds-sg
+          Value: !Sub '${ProjectPrefix}-rds-sg'
 
   # ─────────────────────────────────────────────
   # RDS SUBNET GROUP
@@ -79,14 +79,14 @@ Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupName: myapp-db-subnet-group
+      DBSubnetGroupName: !Sub '${ProjectPrefix}-db-subnet-group'
       DBSubnetGroupDescription: 'Subnet Group untuk RDS (Private Subnets)'
       SubnetIds:
-        - !ImportValue myapp-PrivateSubnet1Id
-        - !ImportValue myapp-PrivateSubnet2Id
+        - !ImportValue { 'Fn::Sub': '${ProjectPrefix}-PrivateSubnet1Id' }
+        - !ImportValue { 'Fn::Sub': '${ProjectPrefix}-PrivateSubnet2Id' }
       Tags:
         - Key: Name
-          Value: myapp-db-subnet-group
+          Value: !Sub '${ProjectPrefix}-db-subnet-group'
 
   # ─────────────────────────────────────────────
   # RDS PostgreSQL Instance
@@ -98,7 +98,7 @@ Resources:
     DeletionPolicy: Snapshot
     UpdateReplacePolicy: Snapshot
     Properties:
-      DBInstanceIdentifier: myapp-postgres
+      DBInstanceIdentifier: !Sub '${ProjectPrefix}-postgres'
       DBInstanceClass: db.t3.micro          # Free Tier eligible
       Engine: postgres
       EngineVersion: '16.13'

@@ -9,8 +9,9 @@ on:
 
 env:
   AWS_REGION: ap-southeast-1
-  EB_APP_NAME: myapp-backend
-  EB_ENV_NAME: myapp-backend-env
+  PROJECT_PREFIX: ${{ vars.PROJECT_PREFIX || 'myapp' }}
+  EB_APP_NAME: ${{ vars.PROJECT_PREFIX || 'myapp' }}-backend
+  EB_ENV_NAME: ${{ vars.PROJECT_PREFIX || 'myapp' }}-prod-env
 
 jobs:
   # ─────────────────────────────────────────────
@@ -79,14 +80,14 @@ jobs:
 
       - name: Upload Artifact to S3
         run: |
-          BUCKET="myapp-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
+          BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
           aws s3 cp backend-${{ github.sha }}.zip \
             s3://${BUCKET}/backend/backend-${{ github.sha }}.zip
           echo "Uploaded: s3://${BUCKET}/backend/backend-${{ github.sha }}.zip"
 
       - name: Create Elastic Beanstalk Application Version
         run: |
-          BUCKET="myapp-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
+          BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
           aws elasticbeanstalk create-application-version \
             --application-name ${{ env.EB_APP_NAME }} \
             --version-label "v-${{ github.sha }}" \
@@ -121,7 +122,7 @@ jobs:
             --output text)
           
           EB_URL=$(aws cloudformation describe-stacks \
-            --stack-name myapp-beanstalk \
+            --stack-name ${{ env.PROJECT_PREFIX }}-beanstalk \
             --query 'Stacks[0].Outputs[?OutputKey==`BeanstalkURL`].OutputValue' \
             --output text)
           

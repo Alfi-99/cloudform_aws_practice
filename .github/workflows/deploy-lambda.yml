@@ -9,6 +9,7 @@ on:
 
 env:
   AWS_REGION: ap-southeast-1
+  PROJECT_PREFIX: ${{ vars.PROJECT_PREFIX || 'myapp' }}
 
 jobs:
   # ─────────────────────────────────────────────
@@ -98,7 +99,7 @@ jobs:
 
       - name: Upload to S3
         run: |
-          BUCKET="myapp-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
+          BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
           
           aws s3 cp post-handler-${{ github.sha }}.zip \
             s3://${BUCKET}/lambda/post-handler.zip
@@ -110,34 +111,34 @@ jobs:
 
       - name: Update Lambda POST Function
         run: |
-          BUCKET="myapp-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
+          BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
           
           aws lambda update-function-code \
-            --function-name myapp-post-handler \
+            --function-name ${{ env.PROJECT_PREFIX }}-post-handler \
             --s3-bucket ${BUCKET} \
             --s3-key lambda/post-handler.zip \
             --region ${{ env.AWS_REGION }}
           
           echo "Waiting for POST Lambda update..."
           aws lambda wait function-updated \
-            --function-name myapp-post-handler \
+            --function-name ${{ env.PROJECT_PREFIX }}-post-handler \
             --region ${{ env.AWS_REGION }}
           
           echo "✅ POST Lambda updated!"
 
       - name: Update Lambda GET Function
         run: |
-          BUCKET="myapp-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
+          BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
           
           aws lambda update-function-code \
-            --function-name myapp-get-handler \
+            --function-name ${{ env.PROJECT_PREFIX }}-get-handler \
             --s3-bucket ${BUCKET} \
             --s3-key lambda/get-handler.zip \
             --region ${{ env.AWS_REGION }}
           
           echo "Waiting for GET Lambda update..."
           aws lambda wait function-updated \
-            --function-name myapp-get-handler \
+            --function-name ${{ env.PROJECT_PREFIX }}-get-handler \
             --region ${{ env.AWS_REGION }}
           
           echo "✅ GET Lambda updated!"
@@ -148,7 +149,7 @@ jobs:
           
           # Test POST Lambda
           POST_RESULT=$(aws lambda invoke \
-            --function-name myapp-post-handler \
+            --function-name ${{ env.PROJECT_PREFIX }}-post-handler \
             --payload '{"httpMethod":"POST","body":"{\"name\":\"ci-test\",\"value\":99.9,\"category\":\"test\"}","headers":{"Content-Type":"application/json"}}' \
             --cli-binary-format raw-in-base64-out \
             /tmp/post-response.json \
@@ -159,7 +160,7 @@ jobs:
           
           # Test GET Lambda
           GET_RESULT=$(aws lambda invoke \
-            --function-name myapp-get-handler \
+            --function-name ${{ env.PROJECT_PREFIX }}-get-handler \
             --payload '{"httpMethod":"GET","queryStringParameters":{"limit":"5"}}' \
             --cli-binary-format raw-in-base64-out \
             /tmp/get-response.json \

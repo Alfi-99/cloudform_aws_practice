@@ -19,6 +19,7 @@ on:
 
 env:
   AWS_REGION: ap-southeast-1
+  PROJECT_PREFIX: ${{ vars.PROJECT_PREFIX || 'myapp' }}
 
 jobs:
   # ─────────────────────────────────────────────
@@ -37,6 +38,7 @@ jobs:
             exit 1
           fi
           echo "✅ Konfirmasi diterima — melanjutkan penghapusan..."
+          echo "⚠️  Project Prefix: ${{ env.PROJECT_PREFIX }}"
           echo "⚠️  Environment: ${{ github.event.inputs.environment }}"
 
       - name: Print Warning
@@ -44,20 +46,19 @@ jobs:
           echo "================================================"
           echo "   ⚠️  PERINGATAN: SEMUA RESOURCE AKAN DIHAPUS"
           echo "================================================"
-          echo "Stack yang akan dihapus (urutan terbalik):"
-          echo "  6. myapp-apigateway"
-          echo "  5. myapp-lambda"
-          echo "  4. myapp-beanstalk"
-          echo "  3. myapp-storage"
-          echo "  2. myapp-rds    ← RDS akan di-snapshot dulu"
-          echo "  1. myapp-vpc"
+          echo "Stack yang akan dihapus (Prefix: ${{ env.PROJECT_PREFIX }}):"
+          echo "  6. ${{ env.PROJECT_PREFIX }}-apigateway"
+          echo "  5. ${{ env.PROJECT_PREFIX }}-lambda"
+          echo "  4. ${{ env.PROJECT_PREFIX }}-beanstalk"
+          echo "  3. ${{ env.PROJECT_PREFIX }}-storage"
+          echo "  2. ${{ env.PROJECT_PREFIX }}-rds    ← RDS akan di-snapshot dulu"
+          echo "  1. ${{ env.PROJECT_PREFIX }}-vpc"
           echo ""
           echo "⏱️  Proses ini membutuhkan ~10-20 menit"
           echo "================================================"
 
   # ─────────────────────────────────────────────
   # DESTROY — Hapus stack dari atas ke bawah
-  # Urutan kebalikan dari deploy!
   # ─────────────────────────────────────────────
   destroy:
     name: 🗑️ Delete All Stacks
@@ -73,19 +74,20 @@ jobs:
 
       - name: Check Stack Status Before Delete
         run: |
-          echo "=== Status Stack Sebelum Dihapus ==="
-          for stack in myapp-apigateway myapp-lambda myapp-beanstalk myapp-storage myapp-rds myapp-vpc; do
+          echo "=== Status Stack Sebelum Dihapus (${{ env.PROJECT_PREFIX }}) ==="
+          for stack in apigateway lambda beanstalk storage rds vpc; do
+            FULL_NAME="${{ env.PROJECT_PREFIX }}-$stack"
             STATUS=$(aws cloudformation describe-stacks \
-              --stack-name $stack \
+              --stack-name $FULL_NAME \
               --query 'Stacks[0].StackStatus' \
               --output text 2>/dev/null || echo "NOT_FOUND")
-            echo "$stack → $STATUS"
+            echo "$FULL_NAME → $STATUS"
           done
 
       # ── Step 1: Hapus API Gateway ─────────────────────────────────
       - name: Delete Stack 6 - API Gateway
         run: |
-          STACK="myapp-apigateway"
+          STACK="${{ env.PROJECT_PREFIX }}-apigateway"
           STATUS=$(aws cloudformation describe-stacks --stack-name $STACK --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
           
           if [ "$STATUS" = "NOT_FOUND" ]; then
@@ -100,7 +102,7 @@ jobs:
       # ── Step 2: Hapus Lambda ──────────────────────────────────────
       - name: Delete Stack 5 - Lambda
         run: |
-          STACK="myapp-lambda"
+          STACK="${{ env.PROJECT_PREFIX }}-lambda"
           STATUS=$(aws cloudformation describe-stacks --stack-name $STACK --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
           
           if [ "$STATUS" = "NOT_FOUND" ]; then
@@ -115,7 +117,7 @@ jobs:
       # ── Step 3: Hapus Elastic Beanstalk ──────────────────────────
       - name: Delete Stack 4 - Elastic Beanstalk
         run: |
-          STACK="myapp-beanstalk"
+          STACK="${{ env.PROJECT_PREFIX }}-beanstalk"
           STATUS=$(aws cloudformation describe-stacks --stack-name $STACK --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
           
           if [ "$STATUS" = "NOT_FOUND" ]; then
@@ -123,25 +125,23 @@ jobs:
           else
             echo "🗑️  Menghapus $STACK (termasuk EC2, ALB, ASG)..."
             aws cloudformation delete-stack --stack-name $STACK --region ${{ env.AWS_REGION }}
-            # Beanstalk butuh waktu lebih lama
             aws cloudformation wait stack-delete-complete --stack-name $STACK --region ${{ env.AWS_REGION }}
             echo "✅ $STACK berhasil dihapus"
           fi
 
       # ── Step 4: Hapus Storage (S3 + EFS) ─────────────────────────
-      - name: Delete Stack 3 - Storage (S3 + EFS)
+      - name: Delete Stack 3 - Storage
         run: |
-          STACK="myapp-storage"
+          STACK="${{ env.PROJECT_PREFIX }}-storage"
           STATUS=$(aws cloudformation describe-stacks --stack-name $STACK --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
           
           if [ "$STATUS" = "NOT_FOUND" ]; then
             echo "⏭️  $STACK tidak ditemukan, dilewati"
           else
-            # ⚠️ S3 harus dikosongkan dulu sebelum stack bisa dihapus
             echo "🧹 Mengosongkan S3 bucket dulu..."
-            BUCKET="myapp-storage-${{ secrets.AWS_ACCOUNT_ID }}-${{ env.AWS_REGION }}"
+            BUCKET="${{ env.PROJECT_PREFIX }}-storage-${{ secrets.AWS_ACCOUNT_ID }}-${{ env.AWS_REGION }}"
             
-            # Hapus semua versi object (karena versioning aktif)
+            # Hapus semua versi object
             aws s3api list-object-versions \
               --bucket $BUCKET \
               --query '{Objects: Versions[].{Key:Key,VersionId:VersionId}}' \
@@ -149,7 +149,6 @@ jobs:
             jq -r '.Objects // [] | .[] | "--delete-object Key=" + .Key + ",VersionId=" + .VersionId' | \
             xargs -r aws s3api delete-objects --bucket $BUCKET --delete "$(cat -)" 2>/dev/null || true
             
-            # Hapus semua objects biasa
             aws s3 rm s3://$BUCKET --recursive 2>/dev/null || true
             
             echo "🗑️  Menghapus $STACK..."
@@ -159,46 +158,39 @@ jobs:
           fi
 
       # ── Step 5: Hapus RDS ─────────────────────────────────────────
-      - name: Delete Stack 2 - RDS PostgreSQL
+      - name: Delete Stack 2 - RDS
         run: |
-          STACK="myapp-rds"
+          STACK="${{ env.PROJECT_PREFIX }}-rds"
           STATUS=$(aws cloudformation describe-stacks --stack-name $STACK --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
           
           if [ "$STATUS" = "NOT_FOUND" ]; then
             echo "⏭️  $STACK tidak ditemukan, dilewati"
           else
-            # ⚠️ Disable DeletionProtection dulu sebelum hapus RDS
             echo "🔓 Menonaktifkan RDS Deletion Protection..."
             aws rds modify-db-instance \
-              --db-instance-identifier myapp-postgres \
+              --db-instance-identifier ${{ env.PROJECT_PREFIX }}-postgres \
               --no-deletion-protection \
               --apply-immediately \
               --region ${{ env.AWS_REGION }} 2>/dev/null || true
             
-            # Tunggu modifikasi selesai
             sleep 30
             
             echo "🗑️  Menghapus $STACK (RDS akan di-snapshot dulu)..."
             aws cloudformation delete-stack --stack-name $STACK --region ${{ env.AWS_REGION }}
-            
-            # RDS butuh waktu paling lama (~10 menit)
-            echo "⏳ Menunggu RDS dihapus (bisa 10-15 menit)..."
-            aws cloudformation wait stack-delete-complete \
-              --stack-name $STACK \
-              --region ${{ env.AWS_REGION }}
+            aws cloudformation wait stack-delete-complete --stack-name $STACK --region ${{ env.AWS_REGION }}
             echo "✅ $STACK berhasil dihapus"
           fi
 
-      # ── Step 6: Hapus VPC (terakhir) ──────────────────────────────
+      # ── Step 6: Hapus VPC ─────────────────────────────────────────
       - name: Delete Stack 1 - VPC
         run: |
-          STACK="myapp-vpc"
+          STACK="${{ env.PROJECT_PREFIX }}-vpc"
           STATUS=$(aws cloudformation describe-stacks --stack-name $STACK --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
           
           if [ "$STATUS" = "NOT_FOUND" ]; then
             echo "⏭️  $STACK tidak ditemukan, dilewati"
           else
-            echo "🗑️  Menghapus $STACK (NAT Gateway, Subnets, IGW)..."
+            echo "🗑️  Menghapus $STACK..."
             aws cloudformation delete-stack --stack-name $STACK --region ${{ env.AWS_REGION }}
             aws cloudformation wait stack-delete-complete --stack-name $STACK --region ${{ env.AWS_REGION }}
             echo "✅ $STACK berhasil dihapus"
@@ -207,7 +199,7 @@ jobs:
       # ── Step 7: Hapus Artifact Bucket ─────────────────────────────
       - name: Delete Artifact S3 Bucket
         run: |
-          BUCKET="myapp-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
+          BUCKET="${{ env.PROJECT_PREFIX }}-artifacts-${{ secrets.AWS_ACCOUNT_ID }}"
           
           if aws s3 ls "s3://${BUCKET}" 2>/dev/null; then
             echo "🧹 Mengosongkan dan menghapus artifact bucket..."
@@ -224,15 +216,13 @@ jobs:
           echo "================================================"
           echo "          ✅ DESTROY SELESAI                   "
           echo "================================================"
-          echo "Verifikasi status semua stack:"
-          for stack in myapp-apigateway myapp-lambda myapp-beanstalk myapp-storage myapp-rds myapp-vpc; do
+          echo "Verifikasi status semua stack (Prefix: ${{ env.PROJECT_PREFIX }}):"
+          for stack in apigateway lambda beanstalk storage rds vpc; do
+            FULL_NAME="${{ env.PROJECT_PREFIX }}-$stack"
             STATUS=$(aws cloudformation describe-stacks \
-              --stack-name $stack \
+              --stack-name $FULL_NAME \
               --query 'Stacks[0].StackStatus' \
               --output text 2>/dev/null || echo "✅ DELETED")
-            echo "$stack → $STATUS"
+            echo "$FULL_NAME → $STATUS"
           done
-          echo ""
-          echo "💡 Catatan: RDS final snapshot masih tersimpan di AWS"
-          echo "   Hapus manual di Console: RDS → Snapshots jika sudah tidak diperlukan"
           echo "================================================"
